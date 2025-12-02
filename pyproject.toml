@@ -5,7 +5,7 @@ description = "Default template for PDM package"
 authors = [
     {name = "iraramirez", email = "elvirarp92@gmail.com"},
 ]
-dependencies = ["py-cord>=2.6.1", "python-dotenv>=1.1.1", "audioop-lts>=0.2.2"]
+dependencies = ["py-cord>=2.6.1", "python-dotenv>=1.1.1", "audioop-lts>=0.2.2", "supabase>=2.24.0", "asyncio>=4.0.0"]
 requires-python = "==3.13.*"
 readme = "README.md"
 license = {text = "MIT"}
