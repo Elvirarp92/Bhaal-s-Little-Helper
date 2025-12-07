@@ -80,6 +80,53 @@ class RegisterModal(discord.ui.Modal):
             )
 
 
+class EditModal(discord.ui.Modal):
+    def __init__(self, initial_values, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.add_item(
+            discord.ui.InputText(
+                label="What ships or chars do you wanna receive?",
+                value=initial_values.get("ship_list", ""),
+            )
+        )
+        self.add_item(
+            discord.ui.InputText(
+                label="What tropes, setups or vibes do you like?",
+                value=initial_values.get("yums", ""),
+                style=discord.InputTextStyle.long,
+            )
+        )
+        self.add_item(
+            discord.ui.InputText(
+                label="Is there any topic you want to avoid?",
+                value=initial_values.get("yucks", ""),
+                style=discord.InputTextStyle.long,
+            )
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        guild = interaction.guild_id
+        user = interaction.user.id
+        ship_list = self.children[0].value or ""
+        yums = self.children[1].value or ""
+        yucks = self.children[2].value or ""
+
+        await interaction.response.defer(ephemeral=True)
+
+        await asyncio.to_thread(
+            lambda: db.update_registration(
+                user_id=user,
+                guild_id=guild,
+                data={"yucks": yucks, "yums": yums, "ship_list": ship_list},
+            )
+        )
+
+        await interaction.followup.send(
+            "Your registration has been updated.", ephemeral=True
+        )
+
+
 @bot.event
 async def on_ready():
     print(f"{bot.user} is ready and online!")
@@ -88,6 +135,39 @@ async def on_ready():
 @bot.slash_command(name="register", description="Register in the server's Secret Santa")
 async def register(ctx: discord.ApplicationContext):
     modal = RegisterModal(title="Laboratory Secret Santa Inscription Form")
+    await ctx.send_modal(modal)
+
+
+@bot.slash_command(name="edit", description="Edit your Secret Santa registration")
+async def edit(ctx: discord.ApplicationContext):
+    guild = ctx.guild_id
+    user = ctx.user.id
+
+    registration = await asyncio.to_thread(
+        lambda: db.get_registration_by_pk(user_id=user, guild_id=guild)
+    )
+
+    if not getattr(registration, "data", None) or len(registration.data) == 0:
+        await ctx.respond(
+            "You are not registered yet! Please register (/register) first.",
+            ephemeral=True,
+        )
+        return
+
+    stored = (
+        registration.data[0]
+        if isinstance(registration.data, list)
+        else registration.data
+    )
+    initial_values = {
+        "ship_list": stored.get("ship_list", "") if isinstance(stored, dict) else "",
+        "yums": stored.get("yums", "") if isinstance(stored, dict) else "",
+        "yucks": stored.get("yucks", "") if isinstance(stored, dict) else "",
+    }
+
+    modal = EditModal(
+        title="Edit your Secret Santa Registration", initial_values=initial_values
+    )
     await ctx.send_modal(modal)
 
 

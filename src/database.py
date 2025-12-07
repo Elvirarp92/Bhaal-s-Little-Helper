@@ -37,7 +37,19 @@ class DatabaseRepository:
         )
 
     def update_registration(self, user_id: int, guild_id: int, data: Registration):
-        pass
+        return (
+            self.client.table(self.registration_table)
+            .update(
+                {
+                    "yucks": data["yucks"],
+                    "yums": data["yums"],
+                    "ship_list": data["ship_list"],
+                }
+            )
+            .eq("discord_id", user_id)
+            .eq("guild_id", guild_id)
+            .execute()
+        )
 
     def delete_registration(self, user_id: int, guild_id: int):
         pass
