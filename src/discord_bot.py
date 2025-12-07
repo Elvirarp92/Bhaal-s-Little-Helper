@@ -127,6 +127,42 @@ class EditModal(discord.ui.Modal):
         )
 
 
+class DeleteModal(discord.ui.Modal):
+    confirmation_phrase = "DELETE"
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.add_item(
+            discord.ui.InputText(
+                label=f"Type {self.confirmation_phrase} to confirm deletion",
+                placeholder="Type the confirmation phrase exactly",
+            )
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        guild = interaction.guild_id
+        user = interaction.user.id
+        value = (self.children[0].value or "").strip()
+        await interaction.response.defer(ephemeral=True)
+
+        if value != self.confirmation_phrase:
+            await interaction.followup.send(
+                "Confirmation phrase didn't match!", ephemeral=True
+            )
+            return
+
+        await asyncio.to_thread(
+            lambda: db.delete_registration(
+                user_id=user,
+                guild_id=guild,
+            )
+        )
+
+        await interaction.followup.send(
+            "Your registration has been deleted.", ephemeral=True
+        )
+
+
 @bot.event
 async def on_ready():
     print(f"{bot.user} is ready and online!")
@@ -168,6 +204,23 @@ async def edit(ctx: discord.ApplicationContext):
     modal = EditModal(
         title="Edit your Secret Santa Registration", initial_values=initial_values
     )
+    await ctx.send_modal(modal)
+
+
+@bot.slash_command(name="delete", description="Delete your Secret Santa registration")
+async def delete(ctx: discord.ApplicationContext):
+    guild = ctx.guild_id
+    user = ctx.user.id
+
+    # fetch registration before showing modal
+    registration = await asyncio.to_thread(
+        lambda: db.get_registration_by_pk(user_id=user, guild_id=guild)
+    )
+    if not getattr(registration, "data", None) or len(registration.data) == 0:
+        await ctx.respond("You are not registered!", ephemeral=True)
+        return
+
+    modal = DeleteModal(title="Delete your Secret Santa Registration")
     await ctx.send_modal(modal)
 
 

@@ -52,4 +52,10 @@ class DatabaseRepository:
         )
 
     def delete_registration(self, user_id: int, guild_id: int):
-        pass
+        return (
+            self.client.table(self.registration_table)
+            .delete()
+            .eq("discord_id", user_id)
+            .eq("guild_id", guild_id)
+            .execute()
+        )
