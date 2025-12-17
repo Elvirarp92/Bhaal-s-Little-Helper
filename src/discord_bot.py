@@ -1,8 +1,12 @@
 import asyncio
 import discord
 import os
+
+from discord.ext import commands
 from dotenv import load_dotenv
 
+from src.schemas import AssignmentWithReceiverInfo
+from src.sorter import SecretSantaSorter
 from src.database import DatabaseRepository
 
 load_dotenv()
@@ -163,6 +167,31 @@ class DeleteModal(discord.ui.Modal):
         )
 
 
+async def send_assignment_id(assignment: AssignmentWithReceiverInfo):
+    giver_id = int(assignment["giver_discord_id"])
+    giver = await bot.fetch_user(giver_id)
+    receiver_id = int(assignment["receiver_discord_id"])
+    receiver = await bot.fetch_user(receiver_id)
+    if giver:
+        if receiver:
+            try:
+                await giver.send(
+                    "# HO, HO, HO, MORTAL! \n"
+                    f"## You've been assigned {receiver.mention} as a Secret Santa recipient!"
+                    f"\n\nHere are their preferences:\n"
+                    f"**Ships/Characters:** {assignment['receiver_ship_list']}\n"
+                    f"**Likes (Yums):** {assignment['receiver_yums']}\n"
+                    f"**Dislikes (Yucks):** {assignment['receiver_yucks']}\n\n"
+                    "Don't forget to **keep it a secret until 2026/01/06** and have a dead good time preparing their gift!"
+                )
+            except Exception as e:
+                print(f"Failed to send DM to {giver_id}: {e}")
+        else:
+            print(f"Receiver with ID {receiver_id} not found.")
+    else:
+        print(f"User with ID {giver_id} not found.")
+
+
 @bot.event
 async def on_ready():
     print(f"{bot.user} is ready and online!")
@@ -222,6 +251,27 @@ async def delete(ctx: discord.ApplicationContext):
 
     modal = DeleteModal(title="Delete your Secret Santa Registration")
     await ctx.send_modal(modal)
+
+
+@bot.slash_command(name="sort", description="Sort Secret Santa assignments")
+@commands.has_permissions(administrator=True)
+async def sort(ctx: discord.ApplicationContext):
+    guild = ctx.guild_id
+    sorter = SecretSantaSorter(db_repository=db, guild_id=guild)
+    assignments = await asyncio.to_thread(lambda: sorter.perform_sorting())
+
+    for assignment in assignments:
+        await send_assignment_id(assignment)
+
+    if len(assignments) == 0:
+        await ctx.respond(
+            "No participants registered for Secret Santa.", ephemeral=True
+        )
+        return
+
+    await ctx.respond(
+        f"Sorted {len(assignments)} participants for Secret Santa!", ephemeral=True
+    )
 
 
 bot.run(TOKEN)

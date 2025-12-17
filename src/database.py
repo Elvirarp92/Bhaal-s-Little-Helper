@@ -2,7 +2,7 @@ import os
 
 from supabase import Client, create_client
 
-from src.schemas import Registration
+from src.schemas import DiscordRegistrationForm, Assignment
 
 
 class DatabaseRepository:
@@ -12,7 +12,9 @@ class DatabaseRepository:
         self.registration_table: str = "users"
         self.client: Client = create_client(url, key)
 
-    def save_registration(self, user_id: int, guild_id: int, data: Registration):
+    def save_registration(
+        self, user_id: int, guild_id: int, data: DiscordRegistrationForm
+    ):
         return (
             self.client.table(self.registration_table)
             .insert(
@@ -36,7 +38,17 @@ class DatabaseRepository:
             .execute()
         )
 
-    def update_registration(self, user_id: int, guild_id: int, data: Registration):
+    def get_registrations_by_guild(self, guild_id: int):
+        return (
+            self.client.table(self.registration_table)
+            .select("*")
+            .eq("guild_id", guild_id)
+            .execute()
+        )
+
+    def update_registration(
+        self, user_id: int, guild_id: int, data: DiscordRegistrationForm
+    ):
         return (
             self.client.table(self.registration_table)
             .update(
@@ -59,3 +71,6 @@ class DatabaseRepository:
             .eq("guild_id", guild_id)
             .execute()
         )
+
+    def save_assignments(self, assignments: list[Assignment]):
+        return self.client.table("assignments").insert(assignments).execute()
