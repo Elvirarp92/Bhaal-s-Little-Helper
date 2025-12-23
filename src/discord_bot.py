@@ -256,12 +256,13 @@ async def delete(ctx: discord.ApplicationContext):
 @bot.slash_command(name="sort", description="Sort Secret Santa assignments")
 @commands.has_permissions(administrator=True)
 async def sort(ctx: discord.ApplicationContext):
+    await ctx.defer(ephemeral=True)
+
     guild = ctx.guild_id
     sorter = SecretSantaSorter(db_repository=db, guild_id=guild)
     assignments = await asyncio.to_thread(lambda: sorter.perform_sorting())
 
-    for assignment in assignments:
-        await send_assignment_id(assignment)
+    await asyncio.gather(*(send_assignment_id(a) for a in assignments))
 
     if len(assignments) == 0:
         await ctx.respond(
